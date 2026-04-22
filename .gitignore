@@ -1,0 +1,13 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Data files
+*.csv
+script/stage_2_script/stage_2_data/
+*.tsv
+*.xlsx
+
+# OS junk
+.DS_Store
+Thumbs.db
