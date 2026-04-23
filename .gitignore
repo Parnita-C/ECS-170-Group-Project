@@ -4,7 +4,7 @@ __pycache__/
 
 # Data files
 *.csv
-script/stage_2_script/stage_2_data/
+data
 *.tsv
 *.xlsx
 
