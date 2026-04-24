@@ -15,7 +15,7 @@ import numpy as np
 class Method_MLP(method, nn.Module):
     data = None
     # it defines the max rounds to train the model
-    max_epoch = 500
+    max_epoch = 10
     # it defines the learning rate for gradient descent based optimizer for model learning
     learning_rate = 1e-3
 
@@ -81,7 +81,33 @@ class Method_MLP(method, nn.Module):
             if epoch%100 == 0:
                 accuracy_evaluator.data = {'true_y': y_true, 'pred_y': y_pred.max(1)[1]}
                 print('Epoch:', epoch, 'Accuracy:', accuracy_evaluator.evaluate(), 'Loss:', train_loss.item())
-    
+
+    def save_loss_plot(self, output_path='training_loss_convergence.png'):
+        """Plot and save the training loss curve recorded during training."""
+        epochs = np.arange(1, len(self.loss_history) + 1)
+
+        fig, ax = plt.subplots(figsize=(9, 5))
+        ax.plot(epochs, self.loss_history, color='#378ADD', linewidth=1.8, linestyle='-')
+
+        ax.set_xlabel('Training Epoch', fontsize=12)
+        ax.set_ylabel('Cross-Entropy Loss', fontsize=12)
+        ax.set_title('MLP Training Loss Convergence\n'
+                     r'Adam optimizer, $\alpha$=1e-3, CrossEntropyLoss',
+                     fontsize=13, pad=12)
+
+        ax.set_xlim(1, len(self.loss_history))
+        ax.set_ylim(bottom=0)
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(50))
+        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.2f'))
+
+        ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.5)
+        ax.spines[['top', 'right']].set_visible(False)
+
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        print(f'Loss plot saved to: {output_path}')
+        plt.close()
+
     def test(self, X):
         # do the testing, and result the result
         y_pred = self.forward(torch.FloatTensor(np.array(X)))
