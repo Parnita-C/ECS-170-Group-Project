@@ -101,7 +101,7 @@ class Method_MLP(method, nn.Module):
 
         self.save_loss_plot()
 
-    def save_loss_plot(self, output_path='training_loss_convergence.png'):
+    def save_loss_plot(self, output_path=r'C:\Users\chpar\ECS 170\training_loss_convergence.png'):
         """Plot and save the training loss curve recorded during training."""
         epochs = np.arange(1, len(self.loss_history) + 1)
 
