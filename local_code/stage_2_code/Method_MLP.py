@@ -10,6 +10,8 @@ from local_code.stage_2_code.Evaluate_Accuracy import Evaluate_Accuracy
 import torch
 from torch import nn
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 
 class Method_MLP(method, nn.Module):
@@ -18,69 +20,86 @@ class Method_MLP(method, nn.Module):
     max_epoch = 10
     # it defines the learning rate for gradient descent based optimizer for model learning
     learning_rate = 1e-3
+    # mini-batch size: much faster than full-batch and helps the model generalize better
+    batch_size = 256
 
-    # it defines the the MLP model architecture, e.g.,
-    # how many layers, size of variables in each layer, activation function, etc.
-    # the size of the input/output portal of the model architecture should be consistent with our data input and desired output
     def __init__(self, mName, mDescription):
         method.__init__(self, mName, mDescription)
         nn.Module.__init__(self)
-        # check here for nn.Linear doc: https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
-        self.fc_layer_1 = nn.Linear(784, 256)
-        # check here for nn.ReLU doc: https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html
-        self.activation_func_1 = nn.ReLU()
-        self.fc_layer_2 = nn.Linear(256, 10)
-        # check here for nn.Softmax doc: https://pytorch.org/docs/stable/generated/torch.nn.Softmax.html
-        self.activation_func_2 = nn.Softmax(dim=1)
 
-    # it defines the forward propagation function for input x
-    # this function will calculate the output layer by layer
+        # deeper network: 784 -> 512 -> 256 -> 10
+        # BatchNorm stabilizes training; Dropout prevents overfitting
+        self.network = nn.Sequential(
+            nn.Linear(784, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Linear(256, 10),
+            # NOTE: no Softmax here — nn.CrossEntropyLoss applies it internally
+        )
 
     def forward(self, x):
         '''Forward propagation'''
-        # hidden layer embeddings
-        h = self.activation_func_1(self.fc_layer_1(x))
-        # outout layer result
-        # self.fc_layer_2(h) will be a nx2 tensor
-        # n (denotes the input instance number): 0th dimension; 2 (denotes the class number): 1st dimension
-        # we do softmax along dim=1 to get the normalized classification probability distributions for each instance
-        y_pred = self.activation_func_2(self.fc_layer_2(h))
-        return y_pred
-
-    # backward error propagation will be implemented by pytorch automatically
-    # so we don't need to define the error backpropagation function here
+        return self.network(x)
 
     def train(self, X, y):
-        # check here for the torch.optim doc: https://pytorch.org/docs/stable/optim.html
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-        # check here for the nn.CrossEntropyLoss doc: https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html
+        # ReduceLROnPlateau lowers the learning rate if loss stops improving
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode='min', factor=0.5, patience=3
+        )
         loss_function = nn.CrossEntropyLoss()
-        # for training accuracy investigation purpose
         accuracy_evaluator = Evaluate_Accuracy('training evaluator', '')
 
-        # it will be an iterative gradient updating process
-        # we don't do mini-batch, we use the whole input as one batch
-        # you can try to split X and y into smaller-sized batches by yourself
-        for epoch in range(self.max_epoch): # you can do an early stop if self.max_epoch is too much...
-            # get the output, we need to covert X into torch.tensor so pytorch algorithm can operate on it
-            y_pred = self.forward(torch.FloatTensor(np.array(X)))
-            # convert y to torch.tensor as well
-            y_true = torch.LongTensor(np.array(y))
-            # calculate the training loss
-            train_loss = loss_function(y_pred, y_true)
+        X_tensor = torch.FloatTensor(np.array(X))
+        y_tensor = torch.LongTensor(np.array(y))
+        n_samples = len(X_tensor)
 
-            # check here for the gradient init doc: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html
-            optimizer.zero_grad()
-            # check here for the loss.backward doc: https://pytorch.org/docs/stable/generated/torch.Tensor.backward.html
-            # do the error backpropagation to calculate the gradients
-            train_loss.backward()
-            # check here for the opti.step doc: https://pytorch.org/docs/stable/optim.html
-            # update the variables according to the optimizer and the gradients calculated by the above loss.backward function
-            optimizer.step()
+        self.loss_history = []
 
-            if epoch%100 == 0:
-                accuracy_evaluator.data = {'true_y': y_true, 'pred_y': y_pred.max(1)[1]}
-                print('Epoch:', epoch, 'Accuracy:', accuracy_evaluator.evaluate(), 'Loss:', train_loss.item())
+        for epoch in range(self.max_epoch):
+            # shuffle data each epoch
+            perm = torch.randperm(n_samples)
+            X_tensor = X_tensor[perm]
+            y_tensor = y_tensor[perm]
+
+            epoch_losses = []
+            # mini-batch training
+            for i in range(0, n_samples, self.batch_size):
+                X_batch = X_tensor[i: i + self.batch_size]
+                y_batch = y_tensor[i: i + self.batch_size]
+
+                y_pred = self.forward(X_batch)
+                loss = loss_function(y_pred, y_batch)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                epoch_losses.append(loss.item())
+
+            # average loss across all mini-batches this epoch
+            avg_loss = np.mean(epoch_losses)
+            self.loss_history.append(avg_loss)
+            scheduler.step(avg_loss)
+
+            # evaluate on full training set every epoch
+            self.network.eval()
+            with torch.no_grad():
+                y_pred_full = self.forward(X_tensor)
+            self.network.train()
+
+            accuracy_evaluator.data = {'true_y': y_tensor, 'pred_y': y_pred_full.max(1)[1]}
+            metrics = accuracy_evaluator.evaluate()
+            print(f'Epoch: {epoch}  Accuracy: {metrics["accuracy"]:.4f}  Loss: {avg_loss:.4f}')
+
+        self.save_loss_plot()
 
     def save_loss_plot(self, output_path='training_loss_convergence.png'):
         """Plot and save the training loss curve recorded during training."""
@@ -97,7 +116,7 @@ class Method_MLP(method, nn.Module):
 
         ax.set_xlim(1, len(self.loss_history))
         ax.set_ylim(bottom=0)
-        ax.xaxis.set_major_locator(ticker.MultipleLocator(50))
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.2f'))
 
         ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.5)
@@ -109,12 +128,11 @@ class Method_MLP(method, nn.Module):
         plt.close()
 
     def test(self, X):
-        # do the testing, and result the result
-        y_pred = self.forward(torch.FloatTensor(np.array(X)))
-        # convert the probability distributions to the corresponding labels
-        # instances will get the labels corresponding to the largest probability
+        self.network.eval()
+        with torch.no_grad():
+            y_pred = self.forward(torch.FloatTensor(np.array(X)))
         return y_pred.max(1)[1]
-    
+
     def run(self):
         print('method running...')
         print('--start training...')
@@ -122,4 +140,3 @@ class Method_MLP(method, nn.Module):
         print('--start testing...')
         pred_y = self.test(self.data['test']['X'])
         return {'pred_y': pred_y, 'true_y': self.data['test']['y']}
-            
