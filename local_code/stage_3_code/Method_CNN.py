@@ -13,8 +13,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
+'''copy pasted from stage 2, just changed to CNN'''
 
-class Method_MLP(method, nn.Module):
+class Method_CNN(method, nn.Module):
     data = None
     # it defines the max rounds to train the model
     max_epoch = 10
@@ -101,7 +102,7 @@ class Method_MLP(method, nn.Module):
 
         self.save_loss_plot()
 
-    def save_loss_plot(self, output_path='../../result/stage_2_result/training_loss_convergence.png'):
+    def save_loss_plot(self, output_path='../../result/stage_3_result/training_loss_convergence.png'):
         """Plot and save the training loss curve recorded during training."""
         epochs = np.arange(1, len(self.loss_history) + 1)
 
