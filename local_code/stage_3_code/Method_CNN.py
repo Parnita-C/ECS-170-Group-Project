@@ -120,6 +120,14 @@ class Method_CNN(method, nn.Module):
 
     # ---------- init ----------
 
+    @staticmethod
+    def _get_device():
+        if torch.cuda.is_available():
+            return torch.device('cuda')
+        if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            return torch.device('mps')
+        return torch.device('cpu')
+
     def __init__(self, mName, mDescription, dataset_name='MNIST'):
         method.__init__(self, mName, mDescription)
         nn.Module.__init__(self)
@@ -132,6 +140,9 @@ class Method_CNN(method, nn.Module):
         self.features: nn.Sequential
         self.classifier: nn.Sequential
         self._build_network()
+        self.device = self._get_device()
+        self.to(self.device)
+        print(f'Using device: {self.device}')
 
     def _build_network(self):
         name = self.dataset_name.upper()
@@ -184,8 +195,8 @@ class Method_CNN(method, nn.Module):
             X_list.append(img)
             y_list.append(label)
 
-        X_tensor = torch.FloatTensor(np.array(X_list))
-        y_tensor = torch.LongTensor(y_list)
+        X_tensor = torch.FloatTensor(np.array(X_list)).to(self.device)
+        y_tensor = torch.LongTensor(y_list).to(self.device)
 
         # ORL labels are 1-indexed; shift to 0-indexed for CrossEntropyLoss
         if name == 'ORL':
@@ -240,8 +251,8 @@ class Method_CNN(method, nn.Module):
             self.train()  # back to training mode
 
             accuracy_evaluator.data = {
-                'true_y': y_tensor,
-                'pred_y': y_pred_full.max(1)[1],
+                'true_y': y_tensor.cpu(),
+                'pred_y': y_pred_full.max(1)[1].cpu(),
             }
             metrics = accuracy_evaluator.evaluate()
             print(f'Epoch: {epoch:>3}  '
@@ -257,7 +268,7 @@ class Method_CNN(method, nn.Module):
         self.eval()
         with torch.no_grad():
             y_pred = self.forward(X_tensor).max(1)[1]
-        return y_pred, y_tensor
+        return y_pred.cpu(), y_tensor.cpu()
 
     # ---------- loss plot ----------
 

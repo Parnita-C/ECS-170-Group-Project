@@ -34,24 +34,23 @@ class Evaluate_Accuracy(evaluate):
         metrics = {
             'accuracy': accuracy_score(true_y, pred_y),
 
-            'f1_weighted': f1_score(true_y, pred_y, average='weighted'),
-            'f1_micro': f1_score(true_y, pred_y, average='micro'),
-            'f1_macro': f1_score(true_y, pred_y, average='macro'),
+            'f1_weighted': f1_score(true_y, pred_y, average='weighted', zero_division=0),
+            'f1_micro': f1_score(true_y, pred_y, average='micro', zero_division=0),
+            'f1_macro': f1_score(true_y, pred_y, average='macro', zero_division=0),
 
-            'precision_weighted': precision_score(true_y, pred_y, average='weighted'),
-            'precision_micro': precision_score(true_y, pred_y, average='micro'),
-            'precision_macro': precision_score(true_y, pred_y, average='macro'),
+            'precision_weighted': precision_score(true_y, pred_y, average='weighted', zero_division=0),
+            'precision_micro': precision_score(true_y, pred_y, average='micro', zero_division=0),
+            'precision_macro': precision_score(true_y, pred_y, average='macro', zero_division=0),
 
-            'recall_weighted': recall_score(true_y, pred_y, average='weighted'),
-            'recall_micro': recall_score(true_y, pred_y, average='micro'),
-            'recall_macro': recall_score(true_y, pred_y, average='macro'),
+            'recall_weighted': recall_score(true_y, pred_y, average='weighted', zero_division=0),
+            'recall_micro': recall_score(true_y, pred_y, average='micro', zero_division=0),
+            'recall_macro': recall_score(true_y, pred_y, average='macro', zero_division=0),
         }
-
         return metrics
 
     def print_report(self):
         true_y = np.array(self.data['true_y'])
         pred_y = np.array(self.data['pred_y'])
         print('\n Classification Report')
-        print(classification_report(true_y, pred_y))
+        print(classification_report(true_y, pred_y, zero_division=0))
         

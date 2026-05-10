@@ -14,7 +14,7 @@ from local_code.stage_3_code.Evaluate_Accuracy import Evaluate_Accuracy
 np.random.seed(2)
 
 # ---- select dataset here ----
-DATASET_NAME = 'MNIST'   # 'MNIST', 'CIFAR', or 'ORL'
+DATASET_NAME = 'CIFAR'   # 'MNIST', 'CIFAR', or 'ORL'
 
 DATA_PATH = f'../../data/stage_3_data/{DATASET_NAME}'
 
