@@ -91,6 +91,8 @@ class Method_CNN(method, nn.Module):
         Three conv blocks to handle the larger spatial resolution.
         """
         self.num_classes = 40
+        self.max_epoch = 15
+
         self.features = nn.Sequential(
             # Block 1
             nn.Conv2d(1, 32, kernel_size=3, padding=1),   # -> 32 x 112 x 92
